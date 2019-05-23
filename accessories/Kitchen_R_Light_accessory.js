@@ -3,6 +3,25 @@ var Service = require('../').Service;
 var Characteristic = require('../').Characteristic;
 var uuid = require('../').uuid;
 
+var MQTT_TOPIC = 'getAction_LightKR'; //MQTT topic that was set on the Sonoff firmware
+var MQTT_TOPIC1 = 'Status_LightKR'; //MQTT topic that was set on the Sonoff firmware
+var debug = false;
+
+// MQTT Setup
+var mqtt = require('mqtt');
+if (debug){console.log("Connecting to MQTT broker...");}
+
+var options = {
+    port: 1883,
+    //host: '192.168.1.92',
+    clientId: MQTT_TOPIC+'HAP'
+};
+var client = mqtt.connect(options);
+
+if (debug){console.log("Light Sensor Connected to MQTT broker");}
+
+
+
 var LightController = {
   name: "R_Light", //name of accessory
   pincode: "031-45-154",
@@ -20,6 +39,10 @@ var LightController = {
 
   setPower: function(status) { //set power of accessory
     if(this.outputLogs) console.log("Turning the '%s' %s", this.name, status ? "on" : "off");
+
+    if (status == true) client.publish(MQTT_TOPIC, "1");
+    if (status == false) client.publish(MQTT_TOPIC, "0");
+
     this.power = status;
   },
 
@@ -152,3 +175,17 @@ lightAccessory
   .on('get', function(callback) {
     callback(null, LightController.getHue());
   });
+
+    client.subscribe(MQTT_TOPIC1);
+
+    client.on('message', function(topic, message) {
+       if (debug){console.log(parseFloat(message));}
+       Status_LightKR = parseFloat(message);
+       if (Status_LightKR==1) {TURN=true;}
+       if (Status_LightKR==0) {TURN=false;}
+       //console.log(Status_LightKL);
+        lightAccessory
+       .getService(Service.Lightbulb)
+       .getCharacteristic(Characteristic.On)
+       .updateValue(TURN);
+    });
